@@ -14,13 +14,176 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      multiplayer_rooms: {
+        Row: {
+          code_snippet: string | null
+          created_at: string
+          created_by: string
+          difficulty: string
+          ended_at: string | null
+          id: string
+          language: string
+          max_players: number
+          name: string
+          room_code: string
+          started_at: string | null
+          status: string
+          time_limit: number
+        }
+        Insert: {
+          code_snippet?: string | null
+          created_at?: string
+          created_by: string
+          difficulty?: string
+          ended_at?: string | null
+          id?: string
+          language?: string
+          max_players?: number
+          name: string
+          room_code: string
+          started_at?: string | null
+          status?: string
+          time_limit?: number
+        }
+        Update: {
+          code_snippet?: string | null
+          created_at?: string
+          created_by?: string
+          difficulty?: string
+          ended_at?: string | null
+          id?: string
+          language?: string
+          max_players?: number
+          name?: string
+          room_code?: string
+          started_at?: string | null
+          status?: string
+          time_limit?: number
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          display_name: string | null
+          id: string
+          updated_at: string
+          user_id: string
+          username: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id: string
+          username?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id?: string
+          username?: string | null
+        }
+        Relationships: []
+      }
+      room_participants: {
+        Row: {
+          accuracy: number | null
+          finished: boolean
+          finished_at: string | null
+          id: string
+          is_ready: boolean
+          joined_at: string
+          progress: number | null
+          room_id: string
+          user_id: string
+          wpm: number | null
+        }
+        Insert: {
+          accuracy?: number | null
+          finished?: boolean
+          finished_at?: string | null
+          id?: string
+          is_ready?: boolean
+          joined_at?: string
+          progress?: number | null
+          room_id: string
+          user_id: string
+          wpm?: number | null
+        }
+        Update: {
+          accuracy?: number | null
+          finished?: boolean
+          finished_at?: string | null
+          id?: string
+          is_ready?: boolean
+          joined_at?: string
+          progress?: number | null
+          room_id?: string
+          user_id?: string
+          wpm?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "room_participants_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "multiplayer_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      typing_scores: {
+        Row: {
+          accuracy: number
+          characters_typed: number
+          created_at: string
+          errors: number
+          id: string
+          language: string
+          time_limit: number
+          user_id: string
+          wpm: number
+        }
+        Insert: {
+          accuracy: number
+          characters_typed?: number
+          created_at?: string
+          errors?: number
+          id?: string
+          language: string
+          time_limit?: number
+          user_id: string
+          wpm: number
+        }
+        Update: {
+          accuracy?: number
+          characters_typed?: number
+          created_at?: string
+          errors?: number
+          id?: string
+          language?: string
+          time_limit?: number
+          user_id?: string
+          wpm?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      generate_room_code: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never
