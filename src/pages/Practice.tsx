@@ -1,10 +1,15 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AnimatedCard } from "@/components/ui/animated-card";
+import Navigation from "@/components/layout/Navigation";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import { 
   Play, 
   Pause, 
@@ -18,13 +23,20 @@ import {
 import Editor from "@monaco-editor/react";
 
 const Practice = () => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const { toast } = useToast();
+  
   const [selectedLanguage, setSelectedLanguage] = useState("javascript");
   const [isActive, setIsActive] = useState(false);
   const [currentCode, setCurrentCode] = useState("");
   const [userInput, setUserInput] = useState("");
+  const [timeLimit, setTimeLimit] = useState(60);
   const [timer, setTimer] = useState(60);
   const [wpm, setWpm] = useState(0);
   const [accuracy, setAccuracy] = useState(100);
+  const [startTime, setStartTime] = useState<Date | null>(null);
+  const [errors, setErrors] = useState(0);
 
   // Sample code snippets for different languages
   const codeSnippets = {
@@ -70,6 +82,18 @@ int main() {
       }, 1000);
     } else if (timer === 0) {
       setIsActive(false);
+      saveScore();
+      // Navigate to results page
+      navigate('/results', { 
+        state: { 
+          wpm, 
+          accuracy, 
+          language: selectedLanguage,
+          timeLimit,
+          errors,
+          charactersTyped: userInput.length
+        }
+      });
     }
 
     return () => {
@@ -85,21 +109,64 @@ int main() {
       const calculatedWPM = timeElapsed > 0 ? Math.round(wordsTyped / timeElapsed) : 0;
       
       // Calculate accuracy
-      const correctChars = userInput.split('').filter((char, index) => 
-        char === currentCode[index]
-      ).length;
+      let correctChars = 0;
+      let errorCount = 0;
+      for (let i = 0; i < userInput.length; i++) {
+        if (userInput[i] === currentCode[i]) {
+          correctChars++;
+        } else {
+          errorCount++;
+        }
+      }
       const calculatedAccuracy = Math.round((correctChars / userInput.length) * 100);
       
       setWpm(calculatedWPM);
       setAccuracy(calculatedAccuracy || 100);
+      setErrors(errorCount);
     }
   }, [userInput, timer, currentCode]);
+
+  const saveScore = async () => {
+    if (!user || !startTime) return;
+
+    try {
+      const { error } = await supabase
+        .from('typing_scores')
+        .insert([{
+          user_id: user.id,
+          wpm: wpm,
+          accuracy: accuracy,
+          language: selectedLanguage,
+          time_limit: timeLimit,
+          characters_typed: userInput.length,
+          errors: errors,
+        }]);
+
+      if (error) {
+        console.error('Error saving score:', error);
+        toast({
+          title: "Error",
+          description: "Failed to save your score",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Score saved!",
+          description: `${wpm} WPM with ${accuracy}% accuracy`,
+        });
+      }
+    } catch (err) {
+      console.error('Error saving score:', err);
+    }
+  };
 
   const startPractice = () => {
     setCurrentCode(codeSnippets[selectedLanguage as keyof typeof codeSnippets]);
     setUserInput("");
-    setTimer(60);
+    setTimer(timeLimit);
     setIsActive(true);
+    setStartTime(new Date());
+    setErrors(0);
   };
 
   const pausePractice = () => {
@@ -109,14 +176,18 @@ int main() {
   const resetPractice = () => {
     setIsActive(false);
     setUserInput("");
-    setTimer(60);
+    setTimer(timeLimit);
     setWpm(0);
     setAccuracy(100);
+    setStartTime(null);
+    setErrors(0);
   };
 
   return (
-    <div className="min-h-screen bg-background pt-20 pb-12">
-      <div className="container mx-auto px-4">
+    <>
+      <Navigation />
+      <div className="min-h-screen bg-background pt-20 pb-12">
+        <div className="container mx-auto px-4">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-4xl font-bold hero-gradient mb-2">Practice</h1>
@@ -132,7 +203,7 @@ int main() {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-primary">{timer}s</div>
-              <Progress value={((60 - timer) / 60) * 100} className="mt-2" />
+              <Progress value={((timeLimit - timer) / timeLimit) * 100} className="mt-2" />
             </CardContent>
           </Card>
 
@@ -160,12 +231,40 @@ int main() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Language</CardTitle>
-              <Code2 className="h-4 w-4 text-warning" />
+              <CardTitle className="text-sm font-medium">Time Limit</CardTitle>
+              <Clock className="h-4 w-4 text-warning" />
             </CardHeader>
             <CardContent>
-              <Select value={selectedLanguage} onValueChange={setSelectedLanguage} disabled={isActive}>
+              <Select 
+                value={timeLimit.toString()} 
+                onValueChange={(value) => {
+                  const newLimit = parseInt(value);
+                  setTimeLimit(newLimit);
+                  if (!isActive) setTimer(newLimit);
+                }}
+                disabled={isActive}
+              >
                 <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="15">15s</SelectItem>
+                  <SelectItem value="30">30s</SelectItem>
+                  <SelectItem value="60">60s</SelectItem>
+                  <SelectItem value="120">2min</SelectItem>
+                  <SelectItem value="300">5min</SelectItem>
+                </SelectContent>
+              </Select>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="mb-8">
+          <div className="flex gap-4 mb-4">
+            <div>
+              <label className="text-sm font-medium mb-2 block">Language</label>
+              <Select value={selectedLanguage} onValueChange={setSelectedLanguage} disabled={isActive}>
+                <SelectTrigger className="w-48">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -174,13 +273,13 @@ int main() {
                   <SelectItem value="cpp">C++</SelectItem>
                 </SelectContent>
               </Select>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
 
         {/* Control Buttons */}
         <div className="flex gap-4 mb-8">
-          {!isActive && timer === 60 ? (
+          {!isActive && timer === timeLimit ? (
             <Button variant="hero" size="lg" onClick={startPractice}>
               <Play className="w-5 h-5 mr-2" />
               Start Practice
@@ -292,8 +391,9 @@ int main() {
             </div>
           </CardContent>
         </Card>
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 

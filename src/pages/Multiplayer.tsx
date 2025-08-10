@@ -4,6 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { AnimatedCard } from "@/components/ui/animated-card";
+import Navigation from "@/components/layout/Navigation";
+import { useAuth } from "@/contexts/AuthContext";
+import { useMultiplayerRoom } from "@/hooks/useMultiplayerRoom";
+import { useToast } from "@/hooks/use-toast";
 import { 
   Users, 
   Crown, 
@@ -19,7 +23,99 @@ import {
 } from "lucide-react";
 
 const Multiplayer = () => {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const {
+    activeRooms,
+    currentRoom,
+    participants,
+    loading,
+    createRoom,
+    joinRoom,
+    joinRoomByCode,
+    leaveRoom,
+    toggleReady,
+  } = useMultiplayerRoom();
+  
   const [roomCode, setRoomCode] = useState("");
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [newRoomName, setNewRoomName] = useState("");
+
+  const handleQuickMatch = () => {
+    if (!user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please sign in to join multiplayer games",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (activeRooms.length > 0) {
+      const randomRoom = activeRooms[Math.floor(Math.random() * activeRooms.length)];
+      joinRoom(randomRoom.id);
+    } else {
+      toast({
+        title: "No Active Rooms",
+        description: "No rooms available for quick match. Try creating one!",
+      });
+    }
+  };
+
+  const handleCreateRoom = async () => {
+    if (!user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please sign in to create rooms",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!newRoomName.trim()) {
+      toast({
+        title: "Room Name Required",
+        description: "Please enter a name for your room",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    await createRoom({
+      name: newRoomName,
+      language: 'javascript',
+      difficulty: 'medium',
+      time_limit: 60,
+      max_players: 10,
+    });
+    
+    setShowCreateForm(false);
+    setNewRoomName("");
+  };
+
+  const handleJoinRoom = async () => {
+    if (!user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please sign in to join rooms",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    await joinRoomByCode(roomCode);
+    setRoomCode("");
+  };
+
+  const copyRoomCode = () => {
+    if (currentRoom) {
+      navigator.clipboard.writeText(currentRoom.room_code);
+      toast({
+        title: "Room Code Copied",
+        description: `Room code ${currentRoom.room_code} copied to clipboard`,
+      });
+    }
+  };
   
   // Mock data for active races
   const activeRaces = [
@@ -64,8 +160,10 @@ const Multiplayer = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-background pt-20 pb-12">
-      <div className="container mx-auto px-4">
+    <>
+      <Navigation />
+      <div className="min-h-screen bg-background pt-20 pb-12">
+        <div className="container mx-auto px-4">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-4xl font-bold hero-gradient mb-2">Multiplayer Racing</h1>
@@ -80,7 +178,7 @@ const Multiplayer = () => {
             </div>
             <h3 className="text-xl font-semibold mb-2">Quick Match</h3>
             <p className="text-muted-foreground mb-4">Join a random race with players of similar skill</p>
-            <Button variant="hero" className="w-full">
+            <Button variant="hero" className="w-full" onClick={handleQuickMatch}>
               <PlayCircle className="w-5 h-5 mr-2" />
               Find Race
             </Button>
@@ -92,10 +190,28 @@ const Multiplayer = () => {
             </div>
             <h3 className="text-xl font-semibold mb-2">Create Room</h3>
             <p className="text-muted-foreground mb-4">Create a private room for friends</p>
-            <Button variant="success" className="w-full">
-              <Plus className="w-5 h-5 mr-2" />
-              Create Room
-            </Button>
+            {!showCreateForm ? (
+              <Button variant="success" className="w-full" onClick={() => setShowCreateForm(true)}>
+                <Plus className="w-5 h-5 mr-2" />
+                Create Room
+              </Button>
+            ) : (
+              <div className="space-y-2">
+                <Input
+                  placeholder="Room name"
+                  value={newRoomName}
+                  onChange={(e) => setNewRoomName(e.target.value)}
+                />
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={handleCreateRoom} disabled={loading}>
+                    Create
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => setShowCreateForm(false)}>
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            )}
           </AnimatedCard>
 
           <AnimatedCard className="p-6 text-center" hover glow>
@@ -110,7 +226,7 @@ const Multiplayer = () => {
                 value={roomCode}
                 onChange={(e) => setRoomCode(e.target.value)}
               />
-              <Button variant="neon" size="icon">
+              <Button variant="neon" size="icon" onClick={handleJoinRoom}>
                 <Search className="w-4 h-4" />
               </Button>
             </div>
@@ -160,8 +276,13 @@ const Multiplayer = () => {
                   </div>
                 </div>
 
-                <Button variant="default" className="w-full">
-                  Join Race
+                <Button 
+                  variant="default" 
+                  className="w-full" 
+                  onClick={() => joinRoom(race.id.toString())}
+                  disabled={race.players >= race.maxPlayers}
+                >
+                  {race.players >= race.maxPlayers ? 'Room Full' : 'Join Race'}
                 </Button>
               </AnimatedCard>
             ))}
@@ -169,17 +290,18 @@ const Multiplayer = () => {
         </div>
 
         {/* Current Lobby */}
+        {currentRoom && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
               <span className="flex items-center">
                 <Users className="w-5 h-5 mr-2" />
-                Lobby - JavaScript Sprint
+                Lobby - {currentRoom.name}
               </span>
               <div className="flex items-center space-x-2">
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" onClick={copyRoomCode}>
                   <Copy className="w-4 h-4 mr-2" />
-                  Copy Code: ABC123
+                  Copy Code: {currentRoom.room_code}
                 </Button>
                 <Button variant="outline" size="sm">
                   <Share className="w-4 h-4 mr-2" />
@@ -192,32 +314,32 @@ const Multiplayer = () => {
             <div className="grid md:grid-cols-2 gap-8">
               {/* Players List */}
               <div>
-                <h3 className="text-lg font-semibold mb-4">Players ({lobbyPlayers.length}/10)</h3>
+                <h3 className="text-lg font-semibold mb-4">Players ({participants.length}/{currentRoom.max_players})</h3>
                 <div className="space-y-3">
-                  {lobbyPlayers.map((player) => (
-                    <div key={player.id} className="flex items-center justify-between p-4 bg-secondary rounded-lg">
+                  {participants.map((participant, index) => (
+                    <div key={participant.id} className="flex items-center justify-between p-4 bg-secondary rounded-lg">
                       <div className="flex items-center space-x-3">
-                        {player.id === 1 && <Crown className="w-4 h-4 text-warning" />}
+                        {index === 0 && <Crown className="w-4 h-4 text-warning" />}
                         <div>
-                          <p className="font-medium">{player.name}</p>
+                          <p className="font-medium">{participant.profiles?.display_name || 'Unknown User'}</p>
                           <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                            <span className="flex items-center">
-                              <Zap className="w-3 h-3 mr-1" />
-                              {player.wpm} WPM
-                            </span>
-                            <span className="flex items-center">
-                              <Target className="w-3 h-3 mr-1" />
-                              {player.accuracy}%
-                            </span>
-                            <span className="flex items-center">
-                              <Trophy className="w-3 h-3 mr-1" />
-                              #{player.rank}
-                            </span>
+                            {participant.wpm && (
+                              <span className="flex items-center">
+                                <Zap className="w-3 h-3 mr-1" />
+                                {participant.wpm} WPM
+                              </span>
+                            )}
+                            {participant.accuracy && (
+                              <span className="flex items-center">
+                                <Target className="w-3 h-3 mr-1" />
+                                {participant.accuracy}%
+                              </span>
+                            )}
                           </div>
                         </div>
                       </div>
-                      <Badge variant={player.isReady ? "default" : "secondary"}>
-                        {player.isReady ? "Ready" : "Not Ready"}
+                      <Badge variant={participant.is_ready ? "default" : "secondary"}>
+                        {participant.is_ready ? "Ready" : "Not Ready"}
                       </Badge>
                     </div>
                   ))}
@@ -241,15 +363,15 @@ const Multiplayer = () => {
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div className="p-3 bg-secondary rounded">
                       <span className="text-muted-foreground">Duration:</span>
-                      <p className="font-medium">60 seconds</p>
+                      <p className="font-medium">{currentRoom.time_limit} seconds</p>
                     </div>
                     <div className="p-3 bg-secondary rounded">
                       <span className="text-muted-foreground">Language:</span>
-                      <p className="font-medium">JavaScript</p>
+                      <p className="font-medium">{currentRoom.language}</p>
                     </div>
                     <div className="p-3 bg-secondary rounded">
                       <span className="text-muted-foreground">Difficulty:</span>
-                      <p className="font-medium">Medium</p>
+                      <p className="font-medium">{currentRoom.difficulty}</p>
                     </div>
                     <div className="p-3 bg-secondary rounded">
                       <span className="text-muted-foreground">Mode:</span>
@@ -259,10 +381,15 @@ const Multiplayer = () => {
                 </div>
 
                 <div className="space-y-3">
-                  <Button variant="hero" className="w-full" size="lg">
-                    Ready to Race
+                  <Button 
+                    variant="hero" 
+                    className="w-full" 
+                    size="lg"
+                    onClick={toggleReady}
+                  >
+                    {participants.find(p => p.user_id === user?.id)?.is_ready ? "Not Ready" : "Ready to Race"}
                   </Button>
-                  <Button variant="outline" className="w-full">
+                  <Button variant="outline" className="w-full" onClick={leaveRoom}>
                     Leave Lobby
                   </Button>
                 </div>
@@ -270,9 +397,10 @@ const Multiplayer = () => {
             </div>
           </CardContent>
         </Card>
+        )}
       </div>
     </div>
+    </>
   );
 };
-
 export default Multiplayer;
