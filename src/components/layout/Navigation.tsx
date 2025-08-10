@@ -28,7 +28,7 @@ const Navigation = () => {
               <Code className="w-8 h-8 text-primary group-hover:text-primary-glow transition-colors" />
               <div className="absolute inset-0 animate-glow-pulse" />
             </div>
-            <span className="text-2xl font-bold hero-gradient">CodeRace</span>
+            <span className="text-2xl font-bold hero-gradient">TypeCoder</span>
           </Link>
 
           {/* Navigation Items */}
