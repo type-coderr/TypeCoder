@@ -52,14 +52,18 @@ const HeroSection = () => {
 
         {/* CTA Buttons */}
         <div className="animate-fade-in-up flex flex-col sm:flex-row gap-4 justify-center items-center mb-16" style={{ animationDelay: '0.4s' }}>
-          <Button variant="hero" size="xl" className="group">
+          <a href ="https://typecoder.vercel.app/practice">
+          <Button variant="hero" size="xl" className="group" onclick>
             Start Training Now
             <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
           </Button>
+          </a>
+          <a href ="https://typecoder.vercel.app/multiplayer">
           <Button variant="neon" size="xl">
             <Users className="w-5 h-5 mr-2" />
             Challenge Friends
           </Button>
+          </a>
         </div>
 
         {/* Feature cards */}
