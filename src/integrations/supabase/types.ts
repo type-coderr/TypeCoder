@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_suggestions: {
+        Row: {
+          accuracy_context: number | null
+          created_at: string
+          id: string
+          improvement_area: string
+          language_context: string | null
+          suggestion_text: string
+          used: boolean | null
+          user_id: string
+          wpm_context: number | null
+        }
+        Insert: {
+          accuracy_context?: number | null
+          created_at?: string
+          id?: string
+          improvement_area: string
+          language_context?: string | null
+          suggestion_text: string
+          used?: boolean | null
+          user_id: string
+          wpm_context?: number | null
+        }
+        Update: {
+          accuracy_context?: number | null
+          created_at?: string
+          id?: string
+          improvement_area?: string
+          language_context?: string | null
+          suggestion_text?: string
+          used?: boolean | null
+          user_id?: string
+          wpm_context?: number | null
+        }
+        Relationships: []
+      }
       multiplayer_rooms: {
         Row: {
           code_snippet: string | null
@@ -61,6 +97,56 @@ export type Database = {
           time_limit?: number
         }
         Relationships: []
+      }
+      multiplayer_sessions: {
+        Row: {
+          current_position: number | null
+          current_text: string | null
+          id: string
+          is_finished: boolean | null
+          live_accuracy: number | null
+          live_wpm: number | null
+          room_id: string
+          started_at: string | null
+          typing_speed_realtime: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          current_position?: number | null
+          current_text?: string | null
+          id?: string
+          is_finished?: boolean | null
+          live_accuracy?: number | null
+          live_wpm?: number | null
+          room_id: string
+          started_at?: string | null
+          typing_speed_realtime?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          current_position?: number | null
+          current_text?: string | null
+          id?: string
+          is_finished?: boolean | null
+          live_accuracy?: number | null
+          live_wpm?: number | null
+          room_id?: string
+          started_at?: string | null
+          typing_speed_realtime?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "multiplayer_sessions_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "multiplayer_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -144,6 +230,7 @@ export type Database = {
           accuracy: number
           characters_typed: number
           created_at: string
+          difficulty: string | null
           errors: number
           id: string
           language: string
@@ -155,6 +242,7 @@ export type Database = {
           accuracy: number
           characters_typed?: number
           created_at?: string
+          difficulty?: string | null
           errors?: number
           id?: string
           language: string
@@ -166,12 +254,64 @@ export type Database = {
           accuracy?: number
           characters_typed?: number
           created_at?: string
+          difficulty?: string | null
           errors?: number
           id?: string
           language?: string
           time_limit?: number
           user_id?: string
           wpm?: number
+        }
+        Relationships: []
+      }
+      user_progress: {
+        Row: {
+          avg_accuracy: number
+          avg_wpm: number
+          best_wpm: number
+          created_at: string
+          current_streak: number | null
+          id: string
+          languages_practiced: string[]
+          last_practice_date: string | null
+          longest_streak: number | null
+          session_date: string
+          total_races: number
+          total_time_practiced: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avg_accuracy?: number
+          avg_wpm?: number
+          best_wpm?: number
+          created_at?: string
+          current_streak?: number | null
+          id?: string
+          languages_practiced?: string[]
+          last_practice_date?: string | null
+          longest_streak?: number | null
+          session_date?: string
+          total_races?: number
+          total_time_practiced?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avg_accuracy?: number
+          avg_wpm?: number
+          best_wpm?: number
+          created_at?: string
+          current_streak?: number | null
+          id?: string
+          languages_practiced?: string[]
+          last_practice_date?: string | null
+          longest_streak?: number | null
+          session_date?: string
+          total_races?: number
+          total_time_practiced?: number
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -183,6 +323,21 @@ export type Database = {
       generate_room_code: {
         Args: Record<PropertyKey, never>
         Returns: string
+      }
+      get_leaderboard: {
+        Args: { time_period?: string; lang?: string }
+        Returns: {
+          rank: number
+          user_id: string
+          display_name: string
+          username: string
+          avatar_url: string
+          wpm: number
+          accuracy: number
+          total_races: number
+          best_wpm: number
+          avg_wpm: number
+        }[]
       }
     }
     Enums: {

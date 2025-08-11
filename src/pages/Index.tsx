@@ -2,12 +2,14 @@
 
 import Navigation from "@/components/layout/Navigation";
 import HeroSection from "@/components/ui/hero-section";
+import Footer from "@/components/layout/Footer";
 
 const Index = () => {
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
       <HeroSection />
+      <Footer />
     </div>
   );
 };

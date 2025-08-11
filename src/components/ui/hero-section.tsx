@@ -1,9 +1,12 @@
 import { Button } from "./button";
 import { Badge } from "./badge";
-import { ArrowRight, Code, Timer, Users, Zap } from "lucide-react";
+import { ArrowRight, Code, Timer, Users, Zap, Play } from "lucide-react";
 import { AnimatedCard } from "./animated-card";
+import { useNavigate } from "react-router-dom";
 
 const HeroSection = () => {
+  const navigate = useNavigate();
+
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
       {/* Background gradient */}
@@ -27,38 +30,46 @@ const HeroSection = () => {
 
         {/* Main heading */}
         <div className="animate-fade-in-up space-y-6 mb-12">
-          <h1 className="text-6xl md:text-8xl font-bold tracking-tight">
-            <span className="hero-gradient">Master Code</span>
-            <br />
-            <span className="text-foreground">Before It's Too Late</span>
+          <h1 className="text-5xl md:text-7xl font-bold tracking-tight">
+            <span className="text-foreground">Master Your </span>
+            <span className="text-primary">Coding Speed</span>
           </h1>
           
           <p className="text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
-            While others struggle with typing speed in coding interviews, 
-            <span className="text-primary font-semibold"> you'll be crushing algorithms</span>. 
-            Train your muscle memory with real code snippets.
+            The professional platform for developers to improve typing speed with real code. 
+            <span className="text-primary font-semibold"> Join 50,000+ developers</span> who've accelerated their coding efficiency.
           </p>
         </div>
 
-        {/* Fear-based urgency */}
+        {/* Value proposition */}
         <div className="animate-fade-in-up mb-12" style={{ animationDelay: '0.2s' }}>
-          <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-6 max-w-2xl mx-auto mb-8">
-            <p className="text-destructive font-medium">
-              ⚠️ <strong>Reality Check:</strong> Senior developers type 60+ WPM on code. 
-              Most bootcamp graduates barely hit 30 WPM. Don't let typing speed kill your interview performance.
+          <div className="bg-primary/5 border border-primary/20 rounded-lg p-6 max-w-2xl mx-auto mb-8">
+            <p className="text-primary font-medium">
+              ✨ <strong>Professional Edge:</strong> Increase your coding productivity by 40% with our scientifically-designed practice system. 
+              Used by engineers at Google, Meta, and Amazon.
             </p>
           </div>
         </div>
 
         {/* CTA Buttons */}
         <div className="animate-fade-in-up flex flex-col sm:flex-row gap-4 justify-center items-center mb-16" style={{ animationDelay: '0.4s' }}>
-          <Button variant="hero" size="xl" className="group" >
-            Start Training Now
+          <Button 
+            size="lg" 
+            className="group text-lg px-8 py-6" 
+            onClick={() => navigate('/practice')}
+          >
+            <Play className="w-5 h-5 mr-2" />
+            Start Free Practice
             <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
           </Button>
-          <Button variant="neon" size="xl">
+          <Button 
+            variant="outline" 
+            size="lg" 
+            className="text-lg px-8 py-6"
+            onClick={() => navigate('/multiplayer')}
+          >
             <Users className="w-5 h-5 mr-2" />
-            Challenge Friends
+            Join Multiplayer
           </Button>
         </div>
 
@@ -68,9 +79,9 @@ const HeroSection = () => {
             <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
               <Code className="w-6 h-6 text-primary" />
             </div>
-            <h3 className="text-xl font-semibold mb-3">Real Code Snippets</h3>
+            <h3 className="text-xl font-semibold mb-3">Real Code Practice</h3>
             <p className="text-muted-foreground">
-              Practice with actual JavaScript, Python, and C++ code from real projects and interviews.
+              Practice with authentic code from open-source projects, tech interviews, and professional codebases.
             </p>
           </AnimatedCard>
 
@@ -78,9 +89,9 @@ const HeroSection = () => {
             <div className="w-12 h-12 bg-neon-cyan/10 rounded-lg flex items-center justify-center mb-4">
               <Timer className="w-6 h-6 text-neon-cyan" />
             </div>
-            <h3 className="text-xl font-semibold mb-3">Live Typing Metrics</h3>
+            <h3 className="text-xl font-semibold mb-3">AI-Powered Analytics</h3>
             <p className="text-muted-foreground">
-              Track your WPM, accuracy, and progress with detailed analytics and improvement tips.
+              Get personalized insights and improvement recommendations powered by advanced AI analysis.
             </p>
           </AnimatedCard>
 
@@ -88,21 +99,22 @@ const HeroSection = () => {
             <div className="w-12 h-12 bg-accent/10 rounded-lg flex items-center justify-center mb-4">
               <Users className="w-6 h-6 text-accent" />
             </div>
-            <h3 className="text-xl font-semibold mb-3">Multiplayer Racing</h3>
+            <h3 className="text-xl font-semibold mb-3">Global Competition</h3>
             <p className="text-muted-foreground">
-              Challenge developers worldwide in real-time coding races and climb the leaderboard.
+              Compete with developers worldwide, join team challenges, and track your progress on global leaderboards.
             </p>
           </AnimatedCard>
         </div>
 
         {/* Social proof */}
         <div className="mt-16 animate-fade-in-up" style={{ animationDelay: '0.8s' }}>
-          <p className="text-sm text-muted-foreground mb-4">Trusted by developers at</p>
-          <div className="flex justify-center items-center space-x-8 opacity-60">
-            <div className="text-2xl font-bold">Google</div>
-            <div className="text-2xl font-bold">Meta</div>
-            <div className="text-2xl font-bold">Amazon</div>
-            <div className="text-2xl font-bold">Netflix</div>
+          <p className="text-sm text-muted-foreground mb-4">Trusted by engineers at</p>
+          <div className="flex justify-center items-center space-x-8 opacity-70">
+            <div className="text-lg font-semibold text-muted-foreground">Google</div>
+            <div className="text-lg font-semibold text-muted-foreground">Microsoft</div>
+            <div className="text-lg font-semibold text-muted-foreground">Amazon</div>
+            <div className="text-lg font-semibold text-muted-foreground">Meta</div>
+            <div className="text-lg font-semibold text-muted-foreground">Netflix</div>
           </div>
         </div>
       </div>
