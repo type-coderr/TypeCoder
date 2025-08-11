@@ -65,6 +65,19 @@ const AISuggestionsPanel = ({ onClose, autoGenerate = false, performanceData }: 
         </div>
       </div>
 
+      {/* Test AI Suggestion Button */}
+      <div className="mb-4">
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={() => generateSuggestion(45, 92, 'javascript')}
+          disabled={loading}
+        >
+          <Brain className="w-4 h-4 mr-2" />
+          Test AI Suggestion
+        </Button>
+      </div>
+
       {loading && (
         <Card>
           <CardContent className="p-6 text-center">

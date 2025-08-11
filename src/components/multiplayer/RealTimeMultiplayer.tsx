@@ -209,16 +209,15 @@ const RealTimeMultiplayer = ({ roomId, onLeave }: RealTimeMultiplayerProps) => {
     if (gameState.status === 'racing' && websocket && user && startTimeRef.current) {
       const progress = Math.min((input.length / gameState.currentText.length) * 100, 100);
       const timeElapsed = (Date.now() - startTimeRef.current) / 1000;
-      const wordsTyped = input.trim().split(' ').length;
-      const wpm = Math.round((wordsTyped / timeElapsed) * 60) || 0;
+      const correctChars = input.split('').reduce((count, char, index) => {
+        return char === gameState.currentText[index] ? count + 1 : count;
+      }, 0);
+      
+      // Calculate WPM (correct words per minute)
+      const correctWords = correctChars / 5; // Standard: 5 chars = 1 word
+      const wpm = timeElapsed > 0 ? Math.round((correctWords * 60) / timeElapsed) : 0;
       
       // Calculate accuracy
-      let correctChars = 0;
-      for (let i = 0; i < input.length; i++) {
-        if (input[i] === gameState.currentText[i]) {
-          correctChars++;
-        }
-      }
       const accuracy = input.length > 0 ? Math.round((correctChars / input.length) * 100) : 100;
 
       // Send progress update
