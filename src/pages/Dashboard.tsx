@@ -7,6 +7,8 @@ import { AnimatedCard } from "@/components/ui/animated-card";
 import Navigation from "@/components/layout/Navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRealTimeProgress } from "@/hooks/useRealTimeProgress";
+import { useAISuggestions } from "@/hooks/useAISuggestions";
+import AISuggestionsPanel from "@/components/features/ai-suggestions-panel";
 import { supabase } from "@/integrations/supabase/client";
 import { 
   Code, 
@@ -17,13 +19,15 @@ import {
   Clock, 
   Users,
   PlayCircle,
-  BarChart3
+  BarChart3,
+  Brain
 } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const Dashboard = () => {
   const { user } = useAuth();
   const { progress } = useRealTimeProgress();
+  const { suggestions } = useAISuggestions();
   const [userStats, setUserStats] = useState({
     averageWPM: 0,
     accuracy: 0,
@@ -205,8 +209,8 @@ const Dashboard = () => {
           </Card>
         </div>
 
-        {/* Recent Activity */}
-        <div className="grid lg:grid-cols-2 gap-8">
+        {/* Recent Activity and AI Suggestions */}
+        <div className="grid lg:grid-cols-3 gap-8">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center">
@@ -268,6 +272,19 @@ const Dashboard = () => {
                   <Progress value={(7/10) * 100} className="h-2" />
                 </div>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* AI Suggestions */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Brain className="w-5 h-5 mr-2" />
+                AI Improvement Tips
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <AISuggestionsPanel />
             </CardContent>
           </Card>
         </div>
