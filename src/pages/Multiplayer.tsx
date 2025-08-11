@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AnimatedCard } from "@/components/ui/animated-card";
 import Navigation from "@/components/layout/Navigation";
 import MultiplayerRoom from "@/components/multiplayer/MultiplayerRoom";
+import RealTimeMultiplayer from "@/components/multiplayer/RealTimeMultiplayer";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMultiplayerRoom } from "@/hooks/useMultiplayerRoom";
 import { useToast } from "@/hooks/use-toast";
@@ -200,7 +201,7 @@ const Multiplayer = () => {
         <Navigation />
         <div className="min-h-screen bg-background pt-20 pb-12">
           <div className="container mx-auto px-4">
-            <MultiplayerRoom 
+            <RealTimeMultiplayer 
               roomId={currentRoom.id} 
               onLeave={leaveRoom}
             />

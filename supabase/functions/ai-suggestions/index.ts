@@ -61,7 +61,7 @@ Provide a concise, motivating suggestion (max 150 characters) that focuses on on
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: 'gpt-4.1-2025-04-14',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }

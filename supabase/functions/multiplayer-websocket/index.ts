@@ -1,211 +1,309 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.54.0";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.54.0';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+interface WebSocketClient {
+  socket: WebSocket;
+  userId: string;
+  roomId: string;
+  lastUpdate: number;
+}
+
+const clients = new Map<string, WebSocketClient>();
+const rooms = new Map<string, Set<string>>();
 
 serve(async (req) => {
-  const { headers } = req;
-  const upgradeHeader = headers.get("upgrade") || "";
-
-  if (upgradeHeader.toLowerCase() !== "websocket") {
-    return new Response("Expected WebSocket connection", { 
-      status: 400,
-      headers: corsHeaders 
-    });
-  }
-
   const { socket, response } = Deno.upgradeWebSocket(req);
   
-  // Initialize Supabase client
-  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-  const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
-  const supabase = createClient(supabaseUrl, supabaseAnonKey);
+  const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
+  const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+    console.error('Missing Supabase configuration');
+    return new Response('Server configuration error', { status: 500 });
+  }
 
-  let userId: string | null = null;
-  let roomId: string | null = null;
-  let sessionId: string | null = null;
+  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-  socket.onopen = () => {
+  let clientId = '';
+  
+  socket.addEventListener("open", () => {
     console.log("WebSocket connection opened");
-    socket.send(JSON.stringify({
-      type: 'connection_established',
-      message: 'Connected to multiplayer server'
-    }));
-  };
+  });
 
-  socket.onmessage = async (event) => {
+  socket.addEventListener("message", async (event) => {
     try {
       const data = JSON.parse(event.data);
-      console.log("Received message:", data);
+      console.log('Received message:', data);
 
       switch (data.type) {
         case 'join_room':
-          userId = data.userId;
-          roomId = data.roomId;
+          clientId = `${data.user_id}-${Date.now()}`;
+          clients.set(clientId, {
+            socket,
+            userId: data.user_id,
+            roomId: data.room_id,
+            lastUpdate: Date.now()
+          });
 
-          // Create or update multiplayer session
-          const { data: sessionData, error: sessionError } = await supabase
-            .from('multiplayer_sessions')
-            .upsert([{
-              room_id: roomId,
-              user_id: userId,
-              current_position: 0,
-              live_wpm: 0,
-              live_accuracy: 100,
-            }])
-            .select()
-            .single();
+          if (!rooms.has(data.room_id)) {
+            rooms.set(data.room_id, new Set());
+          }
+          rooms.get(data.room_id)!.add(clientId);
 
-          if (sessionError) {
-            console.error('Session error:', sessionError);
-            socket.send(JSON.stringify({
-              type: 'error',
-              message: 'Failed to join room session'
-            }));
-            return;
+          // Get room participants with profiles
+          const { data: participants, error: participantsError } = await supabase
+            .from('room_participants')
+            .select(`
+              user_id,
+              is_ready,
+              progress,
+              wpm,
+              accuracy,
+              finished,
+              profiles!inner (
+                display_name,
+                username
+              )
+            `)
+            .eq('room_id', data.room_id);
+
+          if (participantsError) {
+            console.error('Error fetching participants:', participantsError);
           }
 
-          sessionId = sessionData.id;
-          
           socket.send(JSON.stringify({
             type: 'room_joined',
-            roomId: roomId,
-            sessionId: sessionId
+            participants: participants || []
           }));
+
+          // Check if game should start (need at least 2 ready players)
+          if (participants && participants.filter(p => p.is_ready).length >= 2) {
+            setTimeout(() => startGame(data.room_id), 1000);
+          }
+          break;
+
+        case 'player_ready':
+          await supabase
+            .from('room_participants')
+            .update({ is_ready: true })
+            .eq('room_id', data.room_id)
+            .eq('user_id', data.user_id);
+
+          broadcastToRoom(data.room_id, {
+            type: 'player_ready',
+            user_id: data.user_id
+          });
+
+          // Check if we can start the game
+          const { data: readyCheck } = await supabase
+            .from('room_participants')
+            .select('is_ready')
+            .eq('room_id', data.room_id);
+
+          if (readyCheck && readyCheck.filter(p => p.is_ready).length >= 2) {
+            setTimeout(() => startGame(data.room_id), 1000);
+          }
           break;
 
         case 'typing_update':
-          if (!sessionId || !userId) {
-            socket.send(JSON.stringify({
-              type: 'error',
-              message: 'Not connected to a room'
-            }));
-            return;
-          }
-
-          // Update real-time typing data
-          const { error: updateError } = await supabase
-            .from('multiplayer_sessions')
+          await supabase
+            .from('room_participants')
             .update({
-              current_position: data.position,
-              live_wpm: data.wpm,
-              live_accuracy: data.accuracy,
-              current_text: data.currentText,
-              updated_at: new Date().toISOString(),
+              progress: data.progress,
+              wpm: data.wpm,
+              accuracy: data.accuracy
             })
-            .eq('id', sessionId);
+            .eq('room_id', data.room_id)
+            .eq('user_id', data.user_id);
 
-          if (updateError) {
-            console.error('Update error:', updateError);
-            return;
-          }
-
-          // Broadcast update to other participants
-          socket.send(JSON.stringify({
+          // Broadcast to all room participants except sender
+          broadcastToRoom(data.room_id, {
             type: 'typing_progress',
-            userId: userId,
-            position: data.position,
+            user_id: data.user_id,
+            progress: data.progress,
             wpm: data.wpm,
             accuracy: data.accuracy
-          }));
+          }, data.user_id);
           break;
 
         case 'race_finished':
-          if (!sessionId || !userId) return;
-
-          const { error: finishError } = await supabase
-            .from('multiplayer_sessions')
-            .update({
-              is_finished: true,
-              updated_at: new Date().toISOString(),
-            })
-            .eq('id', sessionId);
-
-          if (finishError) {
-            console.error('Finish error:', finishError);
-            return;
-          }
-
-          // Update room participant with final results
-          const { error: participantError } = await supabase
+          await supabase
             .from('room_participants')
             .update({
               finished: true,
-              finished_at: new Date().toISOString(),
-              wpm: data.finalWpm,
-              accuracy: data.finalAccuracy,
+              wpm: data.final_wpm,
+              accuracy: data.final_accuracy,
+              finished_at: new Date().toISOString()
             })
-            .eq('user_id', userId)
-            .eq('room_id', roomId);
+            .eq('room_id', data.room_id)
+            .eq('user_id', data.user_id);
 
-          if (participantError) {
-            console.error('Participant error:', participantError);
-          }
+          // Save to typing_scores
+          await supabase
+            .from('typing_scores')
+            .insert({
+              user_id: data.user_id,
+              wpm: data.final_wpm,
+              accuracy: data.final_accuracy,
+              language: 'javascript',
+              characters_typed: Math.floor(data.final_wpm * 5),
+              time_limit: 60,
+              errors: Math.floor((100 - data.final_accuracy) / 100 * data.final_wpm * 5)
+            });
 
-          socket.send(JSON.stringify({
-            type: 'race_completed',
-            finalWpm: data.finalWpm,
-            finalAccuracy: data.finalAccuracy
-          }));
-          break;
+          broadcastToRoom(data.room_id, {
+            type: 'player_finished',
+            user_id: data.user_id,
+            wpm: data.final_wpm,
+            accuracy: data.final_accuracy
+          });
 
-        case 'get_leaderboard':
-          if (!roomId) return;
-
-          const { data: participants, error: leaderboardError } = await supabase
+          // Check if all players finished
+          const { data: allParticipants } = await supabase
             .from('room_participants')
-            .select(`
-              *,
-              profiles:user_id (
-                display_name,
-                username,
-                avatar_url
-              )
-            `)
-            .eq('room_id', roomId)
-            .order('wpm', { ascending: false });
+            .select('finished')
+            .eq('room_id', data.room_id);
 
-          if (leaderboardError) {
-            console.error('Leaderboard error:', leaderboardError);
-            return;
+          if (allParticipants && allParticipants.every(p => p.finished)) {
+            // End the game
+            await supabase
+              .from('multiplayer_rooms')
+              .update({
+                status: 'completed',
+                ended_at: new Date().toISOString()
+              })
+              .eq('id', data.room_id);
+
+            broadcastToRoom(data.room_id, {
+              type: 'game_finished'
+            });
           }
-
-          socket.send(JSON.stringify({
-            type: 'room_leaderboard',
-            participants: participants
-          }));
           break;
-
-        default:
-          console.log('Unknown message type:', data.type);
       }
     } catch (error) {
-      console.error('Message handling error:', error);
+      console.error('WebSocket message error:', error);
       socket.send(JSON.stringify({
         type: 'error',
-        message: 'Failed to process message'
+        message: error.message
       }));
     }
-  };
+  });
 
-  socket.onclose = async () => {
+  socket.addEventListener("close", () => {
     console.log("WebSocket connection closed");
-    
-    // Clean up session if exists
-    if (sessionId) {
-      await supabase
-        .from('multiplayer_sessions')
-        .delete()
-        .eq('id', sessionId);
+    if (clientId) {
+      const client = clients.get(clientId);
+      if (client) {
+        const roomClients = rooms.get(client.roomId);
+        if (roomClients) {
+          roomClients.delete(clientId);
+          if (roomClients.size === 0) {
+            rooms.delete(client.roomId);
+          }
+        }
+      }
+      clients.delete(clientId);
     }
-  };
+  });
 
-  socket.onerror = (error) => {
-    console.error("WebSocket error:", error);
-  };
+  async function startGame(roomId: string) {
+    try {
+      // Update room status
+      await supabase
+        .from('multiplayer_rooms')
+        .update({
+          status: 'active',
+          started_at: new Date().toISOString()
+        })
+        .eq('id', roomId);
+
+      // Get room details
+      const { data: room } = await supabase
+        .from('multiplayer_rooms')
+        .select('code_snippet, language')
+        .eq('id', roomId)
+        .single();
+
+      let codeSnippet = getDefaultCode(room?.language || 'javascript');
+      if (room?.code_snippet) {
+        codeSnippet = room.code_snippet;
+      }
+
+      broadcastToRoom(roomId, {
+        type: 'game_started',
+        code_snippet: codeSnippet,
+        language: room?.language || 'javascript'
+      });
+    } catch (error) {
+      console.error('Error starting game:', error);
+    }
+  }
+
+  function broadcastToRoom(roomId: string, message: any, excludeUserId?: string) {
+    const roomClients = rooms.get(roomId);
+    if (roomClients) {
+      roomClients.forEach(clientId => {
+        const client = clients.get(clientId);
+        if (client && 
+            client.socket.readyState === WebSocket.OPEN && 
+            (!excludeUserId || client.userId !== excludeUserId)) {
+          client.socket.send(JSON.stringify(message));
+        }
+      });
+    }
+  }
+
+  function getDefaultCode(language: string) {
+    const codeSnippets = {
+      javascript: `function fibonacci(n) {
+  if (n <= 1) return n;
+  return fibonacci(n - 1) + fibonacci(n - 2);
+}
+
+const result = fibonacci(10);
+console.log("Result:", result);`,
+      python: `def fibonacci(n):
+    if n <= 1:
+        return n
+    return fibonacci(n - 1) + fibonacci(n - 2)
+
+result = fibonacci(10)
+print("Result:", result)`,
+      typescript: `function fibonacci(n: number): number {
+  if (n <= 1) return n;
+  return fibonacci(n - 1) + fibonacci(n - 2);
+}
+
+const result: number = fibonacci(10);
+console.log("Result:", result);`,
+      java: `public class Fibonacci {
+    public static int fibonacci(int n) {
+        if (n <= 1) return n;
+        return fibonacci(n - 1) + fibonacci(n - 2);
+    }
+    
+    public static void main(String[] args) {
+        int result = fibonacci(10);
+        System.out.println("Result: " + result);
+    }
+}`,
+      cpp: `#include <iostream>
+using namespace std;
+
+int fibonacci(int n) {
+    if (n <= 1) return n;
+    return fibonacci(n - 1) + fibonacci(n - 2);
+}
+
+int main() {
+    int result = fibonacci(10);
+    cout << "Result: " << result << endl;
+    return 0;
+}`
+    };
+
+    return codeSnippets[language as keyof typeof codeSnippets] || codeSnippets.javascript;
+  }
 
   return response;
 });

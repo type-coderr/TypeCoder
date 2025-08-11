@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { AnimatedCard } from '@/components/ui/animated-card';
 import Navigation from '@/components/layout/Navigation';
 import VirtualKeyboard from '@/components/ui/virtual-keyboard';
+import ParticleBackground from '@/components/layout/ParticleBackground';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -211,8 +212,9 @@ const TypingLessons = () => {
   return (
     <>
       <Navigation />
-      <div className="min-h-screen bg-background pt-20 pb-12">
-        <div className="container mx-auto px-4">
+      <div className="min-h-screen bg-background pt-20 pb-12 relative">
+        <ParticleBackground />
+        <div className="container mx-auto px-4 relative z-10">
           {/* Header */}
           <div className="mb-8">
             <h1 className="text-4xl font-bold hero-gradient mb-2">Typing Lessons</h1>
