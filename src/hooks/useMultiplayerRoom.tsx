@@ -40,6 +40,7 @@ export const useMultiplayerRoom = () => {
   const [currentRoom, setCurrentRoom] = useState<Room | null>(null);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [loading, setLoading] = useState(false);
+  const [websocket, setWebsocket] = useState<WebSocket | null>(null);
 
   const fetchActiveRooms = useCallback(async () => {
     const { data, error } = await supabase
@@ -100,6 +101,7 @@ export const useMultiplayerRoom = () => {
 
     setCurrentRoom(data);
     await joinRoom(data.id);
+    connectWebSocket(data.id);
     setLoading(false);
     return data;
   }, [user, toast]);
@@ -147,6 +149,7 @@ export const useMultiplayerRoom = () => {
     setCurrentRoom(room);
     const joined = await joinRoom(room.id);
     if (joined) {
+      connectWebSocket(room.id);
       toast({ title: "Success", description: `Joined room: ${room.name}` });
     }
     return joined;
@@ -164,6 +167,10 @@ export const useMultiplayerRoom = () => {
     if (error) {
       console.error('Error leaving room:', error);
     } else {
+      if (websocket) {
+        websocket.close();
+        setWebsocket(null);
+      }
       setCurrentRoom(null);
       setParticipants([]);
       toast({ title: "Left room", description: "You have left the multiplayer room" });
@@ -280,6 +287,57 @@ export const useMultiplayerRoom = () => {
     };
   }, [fetchActiveRooms]);
 
+  // Connect to multiplayer WebSocket
+  const connectWebSocket = useCallback((roomId: string) => {
+    if (!user) return;
+
+    const wsUrl = `wss://lsuppbtbvlkxoxdjmqwz.functions.supabase.co/multiplayer-websocket`;
+    const ws = new WebSocket(wsUrl);
+
+    ws.onopen = () => {
+      console.log('WebSocket connected');
+      ws.send(JSON.stringify({
+        type: 'join_room',
+        roomId: roomId,
+        userId: user.id
+      }));
+    };
+
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      console.log('WebSocket message:', data);
+
+      switch (data.type) {
+        case 'room_joined':
+          console.log('Successfully joined room');
+          break;
+        case 'typing_progress':
+          // Update real-time typing progress
+          break;
+        case 'room_leaderboard':
+          setParticipants(data.participants);
+          break;
+        case 'error':
+          toast({
+            title: "WebSocket Error",
+            description: data.message,
+            variant: "destructive",
+          });
+          break;
+      }
+    };
+
+    ws.onerror = (error) => {
+      console.error('WebSocket error:', error);
+    };
+
+    ws.onclose = () => {
+      console.log('WebSocket disconnected');
+    };
+
+    setWebsocket(ws);
+  }, [user, toast]);
+
   return {
     activeRooms,
     currentRoom,
@@ -291,6 +349,7 @@ export const useMultiplayerRoom = () => {
     leaveRoom,
     toggleReady,
     fetchActiveRooms,
+    websocket,
   };
 };
 

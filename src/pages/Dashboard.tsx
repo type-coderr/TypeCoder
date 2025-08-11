@@ -1,8 +1,13 @@
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { AnimatedCard } from "@/components/ui/animated-card";
+import Navigation from "@/components/layout/Navigation";
+import { useAuth } from "@/contexts/AuthContext";
+import { useRealTimeProgress } from "@/hooks/useRealTimeProgress";
+import { supabase } from "@/integrations/supabase/client";
 import { 
   Code, 
   Trophy, 
@@ -17,25 +22,92 @@ import {
 import { Link } from "react-router-dom";
 
 const Dashboard = () => {
-  // Mock data - would come from Supabase in real implementation
-  const userStats = {
-    averageWPM: 67,
-    accuracy: 94,
-    totalRaces: 142,
-    currentStreak: 7,
-    rank: 1247,
+  const { user } = useAuth();
+  const { progress } = useRealTimeProgress();
+  const [userStats, setUserStats] = useState({
+    averageWPM: 0,
+    accuracy: 0,
+    totalRaces: 0,
+    currentStreak: 0,
+    rank: 0,
     favoriteLanguage: "JavaScript"
+  });
+  const [recentRaces, setRecentRaces] = useState([]);
+
+  useEffect(() => {
+    if (user) {
+      fetchUserStats();
+      fetchRecentRaces();
+    }
+  }, [user]);
+
+  const fetchUserStats = async () => {
+    if (!user) return;
+
+    try {
+      // Get user progress stats
+      const { data: progressData } = await supabase
+        .from('user_progress')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      // Get recent scoring data
+      const { data: scoresData } = await supabase
+        .from('typing_scores')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (scoresData && scoresData.length > 0) {
+        const avgWPM = Math.round(scoresData.reduce((sum, score) => sum + score.wpm, 0) / scoresData.length);
+        const avgAccuracy = Math.round(scoresData.reduce((sum, score) => sum + score.accuracy, 0) / scoresData.length);
+
+        setUserStats({
+          averageWPM: avgWPM,
+          accuracy: avgAccuracy,
+          totalRaces: scoresData.length,
+          currentStreak: progressData?.current_streak || 0,
+          rank: 1247, // Would be calculated server-side
+          favoriteLanguage: "JavaScript"
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching user stats:', error);
+    }
   };
 
-  const recentRaces = [
-    { id: 1, language: "JavaScript", wpm: 72, accuracy: 96, date: "2024-01-09" },
-    { id: 2, language: "Python", wpm: 65, accuracy: 92, date: "2024-01-09" },
-    { id: 3, language: "C++", wpm: 58, accuracy: 89, date: "2024-01-08" },
-  ];
+  const fetchRecentRaces = async () => {
+    if (!user) return;
+
+    try {
+      const { data } = await supabase
+        .from('typing_scores')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(3);
+
+      if (data) {
+        setRecentRaces(data.map(race => ({
+          id: race.id,
+          language: race.language,
+          wpm: race.wpm,
+          accuracy: race.accuracy,
+          date: new Date(race.created_at).toLocaleDateString()
+        })));
+      }
+    } catch (error) {
+      console.error('Error fetching recent races:', error);
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-background pt-20 pb-12">
-      <div className="container mx-auto px-4">
+    <>
+      <Navigation />
+      <div className="min-h-screen bg-background pt-20 pb-12">
+        <div className="container mx-auto px-4">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-4xl font-bold hero-gradient mb-2">Dashboard</h1>
@@ -199,8 +271,9 @@ const Dashboard = () => {
             </CardContent>
           </Card>
         </div>
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 

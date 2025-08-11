@@ -1,8 +1,12 @@
+import { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { AnimatedCard } from "@/components/ui/animated-card";
+import Navigation from "@/components/layout/Navigation";
+import { useAISuggestions } from "@/hooks/useAISuggestions";
 import { 
   Trophy, 
   Target, 
@@ -20,8 +24,12 @@ import {
 import { Link } from "react-router-dom";
 
 const Results = () => {
-  // Mock results data - would come from race completion
-  const raceResults = {
+  const location = useLocation();
+  const { generateSuggestion, suggestions, loading } = useAISuggestions();
+  const [aiSuggestion, setAiSuggestion] = useState(null);
+  
+  // Get results data from navigation state or use defaults
+  const raceResults = location.state || {
     wpm: 72,
     accuracy: 94,
     time: 60,
@@ -34,6 +42,21 @@ const Results = () => {
     isPersonalBest: true
   };
 
+  // Generate AI suggestion when component mounts
+  useEffect(() => {
+    const getAISuggestion = async () => {
+      const suggestion = await generateSuggestion(
+        raceResults.wpm,
+        raceResults.accuracy,
+        raceResults.language,
+        []
+      );
+      setAiSuggestion(suggestion);
+    };
+
+    getAISuggestion();
+  }, []);
+
   // Mock speed over time data for graph
   const speedData = [
     { time: 0, wpm: 0 },
@@ -45,27 +68,15 @@ const Results = () => {
     { time: 60, wpm: 72 }
   ];
 
-  // AI-powered suggestions (would come from OpenAI API in real implementation)
-  const aiSuggestions = [
+  // Get AI suggestions including the latest one
+  const displaySuggestions = aiSuggestion ? [
     {
-      type: "strength",
-      icon: <CheckCircle className="w-5 h-5 text-accent" />,
-      title: "Excellent accuracy on function definitions",
-      description: "You typed function declarations with 98% accuracy. Keep up this precision with complex syntax."
-    },
-    {
-      type: "improvement",
-      icon: <Lightbulb className="w-5 h-5 text-warning" />,
-      title: "Work on bracket combinations",
-      description: "You hesitated on nested brackets and parentheses. Practice typing (){}, [](), and similar combinations."
-    },
-    {
-      type: "improvement",
-      icon: <TrendingUp className="w-5 h-5 text-primary" />,
-      title: "Speed dip at minute 3",
-      description: "Your speed dropped when encountering arrow functions. Practice ES6 syntax to maintain consistent speed."
+      type: "ai_suggestion",
+      icon: <Lightbulb className="w-5 h-5 text-primary" />,
+      title: "AI-Powered Recommendation",
+      description: aiSuggestion.suggestion_text
     }
-  ];
+  ] : [];
 
   const getGrade = (wpm: number, accuracy: number) => {
     const score = (wpm * accuracy) / 100;
@@ -79,8 +90,10 @@ const Results = () => {
   const grade = getGrade(raceResults.wpm, raceResults.accuracy);
 
   return (
-    <div className="min-h-screen bg-background pt-20 pb-12">
-      <div className="container mx-auto px-4">
+    <>
+      <Navigation />
+      <div className="min-h-screen bg-background pt-20 pb-12">
+        <div className="container mx-auto px-4">
         {/* Header */}
         <div className="text-center mb-8">
           <div className={`inline-flex items-center justify-center w-24 h-24 rounded-full ${grade.bg} mb-4`}>
@@ -211,6 +224,7 @@ const Results = () => {
         </div>
 
         {/* AI Suggestions */}
+        {(displaySuggestions.length > 0 || loading) && (
         <Card className="mb-8">
           <CardHeader>
             <CardTitle className="flex items-center">
@@ -220,21 +234,29 @@ const Results = () => {
             <p className="text-muted-foreground">Personalized tips to improve your typing</p>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {aiSuggestions.map((suggestion, index) => (
-                <div key={index} className="flex items-start space-x-4 p-4 bg-secondary rounded-lg">
-                  <div className="flex-shrink-0 mt-1">
-                    {suggestion.icon}
+            {loading ? (
+              <div className="flex items-center justify-center p-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                <span className="ml-3">Generating AI suggestions...</span>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {displaySuggestions.map((suggestion, index) => (
+                  <div key={index} className="flex items-start space-x-4 p-4 bg-gradient-to-r from-primary/5 to-accent/5 border border-primary/20 rounded-lg">
+                    <div className="flex-shrink-0 mt-1">
+                      {suggestion.icon}
+                    </div>
+                    <div>
+                      <h4 className="font-medium mb-1">{suggestion.title}</h4>
+                      <p className="text-sm text-muted-foreground">{suggestion.description}</p>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="font-medium mb-1">{suggestion.title}</h4>
-                    <p className="text-sm text-muted-foreground">{suggestion.description}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
+        )}
 
         {/* Action Buttons */}
         <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
@@ -284,8 +306,9 @@ const Results = () => {
             </div>
           </div>
         </div>
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 
