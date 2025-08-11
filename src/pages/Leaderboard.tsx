@@ -116,8 +116,8 @@ const Leaderboard = () => {
                       <Badge variant="secondary" className="text-xs">
                         You
                       </Badge>
-            })}
-          </div>
+                    )}
+                  </div>
                   <p className="text-sm text-muted-foreground">{player.total_races} races completed</p>
                 </div>
               </div>

@@ -8,6 +8,8 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
 import Practice from "./pages/Practice";
+import EnhancedPractice from "./pages/EnhancedPractice";
+import TypingLessons from "./pages/TypingLessons";
 import Multiplayer from "./pages/Multiplayer";
 import Leaderboard from "./pages/Leaderboard";
 import Results from "./pages/Results";
