@@ -1,6 +1,8 @@
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Code, Trophy, User, Zap, Sun, Moon, LogOut } from "lucide-react";
+import { Code, Trophy, User, Sun, Moon, LogOut, Settings, BookOpen } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 
@@ -12,8 +14,8 @@ const Navigation = () => {
 
   const navItems = [
     { path: "/", label: "Home", icon: Code },
-    { path: "/dashboard", label: "Dashboard", icon: Zap },
     { path: "/practice", label: "Practice", icon: Code },
+    { path: "/lessons", label: "Lessons", icon: BookOpen },
     { path: "/multiplayer", label: "Multiplayer", icon: Trophy },
     { path: "/leaderboard", label: "Leaderboard", icon: Trophy },
   ];
@@ -61,15 +63,28 @@ const Navigation = () => {
             </Button>
             
             {user ? (
-              <>
-                <span className="text-sm text-muted-foreground hidden md:block">
-                  Welcome, {user.email?.split('@')[0]}
-                </span>
+              <div className="flex items-center space-x-4">
+                <div className="hidden md:flex items-center space-x-3">
+                  <div className="text-right">
+                    <p className="text-sm font-medium">Hi, {user.email?.split('@')[0]}</p>
+                    <p className="text-xs text-muted-foreground">Ready to code?</p>
+                  </div>
+                  <Badge variant="secondary" className="text-xs">
+                    Pro
+                  </Badge>
+                </div>
+                <Link to="/profile">
+                  <Avatar className="w-8 h-8 cursor-pointer hover:ring-2 hover:ring-primary transition-all">
+                    <AvatarImage src="" alt="Profile" />
+                    <AvatarFallback className="bg-primary text-primary-foreground text-sm">
+                      {user.email?.charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                </Link>
                 <Button variant="ghost" size="sm" onClick={signOut}>
-                  <LogOut className="w-4 h-4 mr-2" />
-                  Sign Out
+                  <LogOut className="w-4 h-4" />
                 </Button>
-              </>
+              </div>
             ) : (
               <>
                 <Button variant="ghost" size="sm" onClick={() => navigate('/auth')}>

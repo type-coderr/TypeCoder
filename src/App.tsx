@@ -7,6 +7,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
+import Profile from "./pages/Profile";
 import Practice from "./pages/Practice";
 import EnhancedPractice from "./pages/EnhancedPractice";
 import TypingLessons from "./pages/TypingLessons";
@@ -29,7 +30,7 @@ const App = () => (
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<Auth />} />
-              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/profile" element={<Profile />} />
               <Route path="/practice" element={<EnhancedPractice />} />
               <Route path="/practice/basic" element={<Practice />} />
               <Route path="/lessons" element={<TypingLessons />} />
