@@ -73,7 +73,7 @@ const RealTimeMultiplayer = ({ roomId, onLeave }: RealTimeMultiplayerProps) => {
 
   const connectWebSocket = () => {
     try {
-      const ws = new WebSocket(`wss://lsuppbtbvlkxoxdjmqwz.functions.supabase.co/multiplayer-websocket`);
+      const ws = new WebSocket(`wss://lsuppbtbvlkxoxdjmqwz.functions.supabase.co/functions/v1/multiplayer-websocket`);
       
       ws.onopen = () => {
         console.log('WebSocket connected');
